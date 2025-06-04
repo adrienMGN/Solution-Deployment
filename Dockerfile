@@ -21,8 +21,6 @@ COPY ./server.js /app/server.js
 COPY ./models.js /app/models.js
 COPY ./public/ /app/public/
 
-# Copy directories if they exist
-COPY uploads/ ./uploads/
 
 # Create uploads directory and set permissions
 RUN mkdir -p uploads && chown -R audioapp:nodejs uploads

@@ -1,4 +1,3 @@
-
 services:
   mongodb:
     image: mongo:7.0
@@ -44,15 +43,16 @@ services:
       - "3000:3000"
     volumes:
       - ./uploads:/app/uploads
+
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=mongodb://admin:audiorecorder123@mongodb:27017/audiorecorder?authSource=admin
+      - MONGODB_URI=mongodb://admin:admin123@mongodb:27017/audiorecorder?authSource=admin
     restart: unless-stopped
     networks:
       - audio-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -60,6 +60,7 @@ services:
 
 volumes:
   mongodb_data:
+
 
 networks:
   audio-network:
