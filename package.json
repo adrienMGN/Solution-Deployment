@@ -1,0 +1,43 @@
+{
+  "name": "audio-recorder-app",
+  "version": "1.0.0",
+  "description": "Web-based audio recording application for speech data collection",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "test": "jest",
+    "docker:build": "docker build -t audio-recorder .",
+    "docker:run": "docker-compose up -d",
+    "docker:stop": "docker-compose down"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.4",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^7.1.5",
+    "uuid": "^9.0.1",
+    "mongoose": "^8.0.3",
+    "multer-gridfs-storage": "^5.0.2",
+    "gridfs-stream": "^1.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "keywords": [
+    "audio",
+    "recording",
+    "speech",
+    "data-collection",
+    "web-app"
+  ],
+  "author": "Audio Recorder Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
