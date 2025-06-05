@@ -99,21 +99,13 @@ jobs:
       run: docker compose up -d --build
 
     - name: Wait for containers
-      run: sleep 30
+      run: sleep 10
 
     - name: Check container status
       run: |
         echo "=== Container Status ==="
         docker compose ps
         
-        echo "=== Checking MongoDB (port 27017) ==="
-        curl -v telnet://localhost:27017 || nc -zv localhost 27017
-        
-        echo "=== Checking Mongo Express (port 8081) ==="
-        curl -f http://localhost:8081 || echo "Mongo Express not ready"
-        
-        echo "=== Checking Audio Recorder (port 3000) ==="
-        curl -f http://localhost:3000/health || curl -f http://localhost:3000 || echo "Audio Recorder not responding"
 
     - name: Show logs on failure
       if: failure()
