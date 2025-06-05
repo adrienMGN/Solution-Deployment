@@ -104,7 +104,7 @@ jobs:
     - name: Check container status
       run: |
         echo "=== Container Status ==="
-        docker-compose ps
+        docker compose ps
         
         echo "=== Checking MongoDB (port 27017) ==="
         curl -v telnet://localhost:27017 || nc -zv localhost 27017
@@ -127,4 +127,4 @@ jobs:
 
     - name: Cleanup
       if: always()
-      run: docker-compose down -v
+      run: docker compose down -v
