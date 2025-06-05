@@ -20,6 +20,7 @@ RUN npm ci --only=production && npm cache clean --force
 COPY ./server.js /app/server.js
 COPY ./models.js /app/models.js
 COPY ./public/ /app/public/
+COPY ./data /app/data
 
 
 # Create uploads directory and set permissions

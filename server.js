@@ -14,9 +14,29 @@ const { GridFSBucket } = require('mongodb');
 // Import models
 const { Session, Recording } = require('./models');
 
+// Import sentences data
+const sentencesData = require('./data/sentences.json');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://audioapp:audioapp123@localhost:27017/audiorecorder';
+
+// 🔐 Read Mongo credentials from Docker secrets (or fallback to env)
+function readSecret(secretPath, fallback = '') {
+    try {
+        return fs.readFileSync(secretPath, 'utf8').trim();
+    } catch (err) {
+        console.warn(`⚠️ Unable to read secret at ${secretPath}, falling back to default`);
+        return fallback;
+    }
+}
+
+const mongoUser = readSecret('/run/secrets/mongo_user', process.env.MONGO_USER || 'audioapp');
+const mongoPassword = readSecret('/run/secrets/mongo_user_password', process.env.MONGO_PASSWORD || 'audioapp123');
+const mongoHost = 'mongodb'; // Service name in docker-compose
+const mongoDb = 'audiorecorder';
+const authSource = 'audiorecorder';
+
+const MONGODB_URI = `mongodb://${mongoUser}:${mongoPassword}@${mongoHost}:27017/${mongoDb}?authSource=${authSource}`;
 
 // Global variables for GridFS
 let gfsBucket;
@@ -26,13 +46,13 @@ let gridFS;
 mongoose.connect(MONGODB_URI)
     .then(() => {
         console.log('✅ Connected to MongoDB');
-        
+
         // Initialize GridFS
         const conn = mongoose.connection;
         gfsBucket = new GridFSBucket(conn.db, { bucketName: 'recordings' });
         gridFS = Grid(conn.db, mongoose.mongo);
         gridFS.collection('recordings');
-        
+
         console.log('✅ GridFS initialized for audio file storage');
     })
     .catch(err => {
@@ -40,6 +60,7 @@ mongoose.connect(MONGODB_URI)
         console.error('Make sure MongoDB is running and credentials are correct');
         process.exit(1);
     });
+
 
 // Create necessary directories
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -94,29 +115,11 @@ const upload = multer({
     }
 });
 
-// Predefined sentences for reading
-const SENTENCES = [
-    "The quick brown fox jumps over the lazy dog.",
-    "A journey of a thousand miles begins with a single step.",
-    "To be or not to be, that is the question.",
-    "In the beginning was the Word, and the Word was with God.",
-    "All that glitters is not gold.",
-    "The pen is mightier than the sword.",
-    "Knowledge is power, but power corrupts absolutely.",
-    "Life is what happens when you're busy making other plans.",
-    "The only thing we have to fear is fear itself.",
-    "Ask not what your country can do for you, ask what you can do for your country.",
-    "Yesterday is history, tomorrow is a mystery, today is a gift.",
-    "The only impossible journey is the one you never begin.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    "It is during our darkest moments that we must focus to see the light.",
-    "The future belongs to those who believe in the beauty of their dreams.",
-    "Innovation distinguishes between a leader and a follower.",
-    "The greatest glory in living lies not in never falling, but in rising every time we fall.",
-    "The way to get started is to quit talking and begin doing.",
-    "Your time is limited, don't waste it living someone else's life.",
-    "If life were predictable it would cease to be life, and be without flavor."
-];
+// Utility function for random sentence selection
+function getRandomSentences(count) {
+    const shuffled = [...sentencesData.sentences].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, Math.min(count, sentencesData.sentences.length));
+}
 
 // Utility functions
 function getClientInfo(req) {
@@ -161,8 +164,8 @@ app.get('/health', async (req, res) => {
 
 // Get sentences endpoint
 app.get('/api/sentences', (req, res) => {
-    const count = parseInt(req.query.count) || SENTENCES.length;
-    const selectedSentences = SENTENCES.slice(0, Math.min(count, SENTENCES.length));
+    const count = parseInt(req.query.count) || 10;
+    const selectedSentences = getRandomSentences(count);
     res.json({ sentences: selectedSentences });
 });
 
@@ -180,7 +183,7 @@ app.post('/api/session/start', async (req, res) => {
         
         const clientInfo = getClientInfo(req);
         const sessionId = uuidv4();
-        const finalSentenceCount = Math.min(parseInt(sentenceCount) || 10, SENTENCES.length);
+        const finalSentenceCount = Math.min(parseInt(sentenceCount) || 10, sentencesData.sentences.length);
         
         // Create new session in database
         const session = new Session({
@@ -197,9 +200,11 @@ app.post('/api/session/start', async (req, res) => {
         
         console.log(`📝 New session started: ${sessionId} (Age: ${age}, Gender: ${gender}, Sentences: ${finalSentenceCount})`);
         
+        const randomSentences = getRandomSentences(finalSentenceCount);
+        
         res.json({ 
             sessionId, 
-            sentences: SENTENCES.slice(0, finalSentenceCount) 
+            sentences: randomSentences
         });
         
     } catch (error) {
@@ -236,9 +241,9 @@ app.post('/api/upload', upload.single('audio'), async (req, res) => {
         
         console.log('✅ Session found:', session.sessionId);
         
-        // Get the sentence text
+        // Get the sentence text (maintenant obligatoirement depuis le frontend)
         const sentenceIdx = parseInt(sentenceIndex);
-        const sentenceText = sentence || SENTENCES[sentenceIdx] || 'Unknown sentence';
+        const sentenceText = sentence || 'Unknown sentence';
         
         // Create GridFS upload stream
         const filename = `session_${sessionId}_sentence_${sentenceIndex}_${Date.now()}.webm`;

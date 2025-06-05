@@ -1,3 +1,4 @@
+
 services:
   mongodb:
     image: mongo:7.0
@@ -6,16 +7,18 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_ROOT_USERNAME: /run/secrets/mongo_root_user
+      MONGO_INITDB_ROOT_PASSWORD: /run/secrets/mongo_root_password
       MONGO_INITDB_DATABASE: audiorecorder
     volumes:
       - mongodb_data:/data/db
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    secrets:
+      - mongo_root_user
+      - mongo_root_password
     networks:
       - audio-network
 
-  # Optionnel: Interface web pour MongoDB
   mongo-express:
     image: mongo-express:latest
     container_name: audiorecorder-mongo-express
@@ -23,14 +26,17 @@ services:
     ports:
       - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+      ME_CONFIG_MONGODB_ADMINUSERNAME_FILE: /run/secrets/mongo_root_user
+      ME_CONFIG_MONGODB_ADMINPASSWORD_FILE: /run/secrets/mongo_root_password
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_PORT: 27017
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+      ME_CONFIG_BASICAUTH_USERNAME_FILE: /run/secrets/mongo_root_user
+      ME_CONFIG_BASICAUTH_PASSWORD_FILE: /run/secrets/mongo_root_password
     depends_on:
       - mongodb
+    secrets:
+      - mongo_root_user
+      - mongo_root_password
     networks:
       - audio-network
 
@@ -43,11 +49,13 @@ services:
       - "3000:3000"
     volumes:
       - ./uploads:/app/uploads
-
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=mongodb://admin:admin123@mongodb:27017/audiorecorder?authSource=admin
+      # Pas de MONGODB_URI ici : les identifiants seront lus depuis /run/secrets dans le code Node.js
+    secrets:
+      - mongo_user
+      - mongo_user_password
     restart: unless-stopped
     networks:
       - audio-network
@@ -61,6 +69,15 @@ services:
 volumes:
   mongodb_data:
 
+secrets:
+  mongo_root_user:
+    file: ./secrets/mongo_root_user.txt
+  mongo_root_password:
+    file: ./secrets/mongo_root_password.txt
+  mongo_user_password:
+    file: ./secrets/mongo_user_password.txt
+  mongo_user:
+    file: ./secrets/mongo_user.txt
 
 networks:
   audio-network:
