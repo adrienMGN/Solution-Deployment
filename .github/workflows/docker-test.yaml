@@ -33,6 +33,68 @@ jobs:
         });
         EOF
 
+    - name: Setup AppArmor profiles
+      run: |
+        # Create AppArmor profile for mongo-express
+        sudo tee /etc/apparmor.d/mongo-express_profile << 'EOF'
+        #include <tunables/global>
+        profile mongo-express_profile flags=(attach_disconnected,mediate_deleted) {
+          #include <abstractions/base>
+          #include <abstractions/nameservice>
+          
+          capability net_bind_service,
+          capability setuid,
+          capability setgid,
+          
+          network inet tcp,
+          network inet udp,
+          
+          /usr/bin/node ix,
+          /app/** r,
+          /tmp/** rw,
+          /var/tmp/** rw,
+          /proc/sys/kernel/hostname r,
+          /etc/hosts r,
+          /etc/resolv.conf r,
+          /etc/nsswitch.conf r,
+        }
+        EOF
+        
+        # Create AppArmor profile for audio-recorder
+        sudo tee /etc/apparmor.d/audio-recorder_profile << 'EOF'
+        #include <tunables/global>
+        profile audio-recorder_profile flags=(attach_disconnected,mediate_deleted) {
+          #include <abstractions/base>
+          #include <abstractions/nameservice>
+          
+          capability net_bind_service,
+          capability setuid,
+          capability setgid,
+          
+          network inet tcp,
+          network inet udp,
+          
+          /usr/bin/node ix,
+          /usr/bin/curl ix,
+          /app/** rw,
+          /app/uploads/** rw,
+          /tmp/** rw,
+          /var/tmp/** rw,
+          /proc/sys/kernel/hostname r,
+          /etc/hosts r,
+          /etc/resolv.conf r,
+          /etc/nsswitch.conf r,
+          /run/secrets/** r,
+        }
+        EOF
+        
+        # Load AppArmor profiles
+        sudo apparmor_parser -r /etc/apparmor.d/mongo-express_profile
+        sudo apparmor_parser -r /etc/apparmor.d/audio-recorder_profile
+        
+        # Check profiles are loaded
+        sudo aa-status | grep -E "(mongo-express|audio-recorder)" || echo "AppArmor profiles status checked"
+
     - name: Start containers
       run: docker compose up -d --build
 
@@ -42,7 +104,7 @@ jobs:
     - name: Check container status
       run: |
         echo "=== Container Status ==="
-        docker compose ps
+        docker-compose ps
         
         echo "=== Checking MongoDB (port 27017) ==="
         curl -v telnet://localhost:27017 || nc -zv localhost 27017
@@ -65,4 +127,4 @@ jobs:
 
     - name: Cleanup
       if: always()
-      run: docker compose down -v
+      run: docker-compose down -v
