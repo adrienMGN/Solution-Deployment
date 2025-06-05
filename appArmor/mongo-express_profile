@@ -1,0 +1,54 @@
+# mongo-express_profile
+#include <tunables/global>
+
+profile mongo-express_profile flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  
+  # Node.js
+  /usr/bin/node ix,
+  /usr/local/bin/node ix,
+  /bin/sh ix,
+  /usr/bin/curl ix,
+  /usr/bin/wget ix,
+  
+  # Accès aux secrets Docker
+  /run/secrets/** r,
+  
+  # Application
+  /app/** rw,
+  /usr/local/lib/node_modules/** r,
+  /node_modules/** r,
+  
+  # Fichiers temporaires
+  /tmp/** rw,
+  /var/tmp/** rw,
+  
+  # Configuration réseau
+  /etc/hosts r,
+  /etc/resolv.conf r,
+  /etc/nsswitch.conf r,
+  /etc/hostname r,
+  
+  # Logs
+  /var/log/** rw,
+  
+  # Réseau
+  network,
+  
+  # Système
+  /proc/** r,
+  /sys/** r,
+  
+  # Bibliothèques
+  /lib/** r,
+  /usr/lib/** r,
+  /lib64/** r,
+  /usr/lib64/** r,
+  
+  # Accès général
+  /** r,
+  /app/** rw,
+  /tmp/** rw,
+  /var/tmp/** rw,
+}

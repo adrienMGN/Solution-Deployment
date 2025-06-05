@@ -18,7 +18,7 @@ services:
       - mongo_root_password
     networks:
       - audio-network
-
+ 
   mongo-express:
     image: mongo-express:latest
     container_name: audiorecorder-mongo-express
@@ -39,6 +39,8 @@ services:
       - mongo_root_password
     networks:
       - audio-network
+    security_opt:
+      - apparmor:mongo-express_profile
 
   audio-recorder:
     build: .
@@ -65,7 +67,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
+    security_opt:
+      - apparmor:audio-recorder_profile
 volumes:
   mongodb_data:
 
