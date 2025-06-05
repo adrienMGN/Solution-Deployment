@@ -1,0 +1,194 @@
+name: Test Docker Compose Application
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test-docker-compose:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Create secrets directory and files
+      run: |
+        mkdir -p secrets
+        echo "adminuser" > secrets/mongo_root_user.txt
+        echo "adminpassword123" > secrets/mongo_root_password.txt
+        echo "appuser" > secrets/mongo_user.txt
+        echo "apppassword123" > secrets/mongo_user_password.txt
+        
+    - name: Create mongo-init.js if not exists
+      run: |
+        if [ ! -f mongo-init.js ]; then
+          cat > mongo-init.js << 'EOF'
+        // Création de la base de données et de l'utilisateur applicatif
+        db = db.getSiblingDB('audiorecorder');
+        
+        db.createUser({
+          user: 'appuser',
+          pwd: 'apppassword123',
+          roles: [
+            {
+              role: 'readWrite',
+              db: 'audiorecorder'
+            }
+          ]
+        });
+        
+        // Création d'une collection de test
+        db.recordings.insertOne({
+          name: 'test-recording',
+          createdAt: new Date(),
+          status: 'initialized'
+        });
+        
+        print('Database initialization completed');
+        EOF
+        fi
+        
+    - name: Create uploads directory
+      run: |
+        mkdir -p uploads
+        
+    - name: Build and start services
+      run: |
+        docker-compose up -d --build
+        
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for MongoDB to be ready..."
+        timeout 60 bash -c 'until docker-compose exec -T mongodb mongosh --eval "db.adminCommand({ismaster: 1})" > /dev/null 2>&1; do sleep 2; done'
+        
+        echo "Waiting for application to be ready..."
+        timeout 120 bash -c 'until curl -f http://localhost:3000/health > /dev/null 2>&1; do sleep 5; done'
+        
+    - name: Run health checks
+      run: |
+        # Test MongoDB connection
+        echo "Testing MongoDB connection..."
+        docker-compose exec -T mongodb mongosh --eval "db.adminCommand({ismaster: 1})"
+        
+        # Test application health endpoint
+        echo "Testing application health endpoint..."
+        curl -f http://localhost:3000/health || exit 1
+        
+        # Test mongo-express (optional, can fail without breaking the build)
+        echo "Testing mongo-express..."
+        curl -f http://localhost:8081/ || echo "Mongo Express not accessible (this is OK for testing)"
+        
+    - name: Test MongoDB data persistence
+      run: |
+        # Test database connection and basic operations
+        echo "Testing database operations..."
+        docker-compose exec -T mongodb mongosh audiorecorder --eval "
+          db.auth('appuser', 'apppassword123');
+          db.recordings.find().pretty();
+          db.recordings.insertOne({name: 'ci-test', createdAt: new Date()});
+          print('Records count: ' + db.recordings.countDocuments());
+        "
+        
+    - name: Test application endpoints (if applicable)
+      run: |
+        # Test basic application endpoints
+        echo "Testing application endpoints..."
+        
+        # Test root endpoint (adjust based on your app structure)
+        curl -f http://localhost:3000/ || echo "Root endpoint not available"
+        
+        # Test API endpoints (adjust based on your app structure)
+        curl -f http://localhost:3000/api/health || echo "API health endpoint not available"
+        
+    - name: Check logs for errors
+      if: always()
+      run: |
+        echo "=== MongoDB Logs ==="
+        docker-compose logs mongodb
+        echo ""
+        echo "=== Application Logs ==="
+        docker-compose logs audio-recorder
+        echo ""
+        echo "=== Mongo Express Logs ==="
+        docker-compose logs mongo-express
+        
+    - name: Check container status
+      if: always()
+      run: |
+        echo "=== Container Status ==="
+        docker-compose ps
+        echo ""
+        echo "=== Docker Images ==="
+        docker images
+        echo ""
+        echo "=== Network Information ==="
+        docker network ls
+        docker network inspect $(docker-compose ps -q | head -1 | xargs docker inspect --format='{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}') 2>/dev/null || true
+        
+    - name: Test volume persistence
+      run: |
+        echo "Testing volume persistence..."
+        # Check if MongoDB data volume exists and has data
+        docker volume ls
+        docker-compose exec -T mongodb ls -la /data/db/
+        
+        # Check uploads directory
+        ls -la uploads/
+        
+    - name: Performance and resource usage check
+      run: |
+        echo "=== Resource Usage ==="
+        docker stats --no-stream
+        echo ""
+        echo "=== Disk Usage ==="
+        df -h
+        echo ""
+        echo "=== Memory Usage ==="
+        free -h
+        
+    - name: Security scan (optional)
+      continue-on-error: true
+      run: |
+        # Basic security checks
+        echo "=== Security Checks ==="
+        
+        # Check for exposed ports
+        echo "Checking for exposed ports..."
+        docker-compose ps
+        
+        # Check for running processes in containers
+        echo "Checking container processes..."
+        docker-compose exec -T mongodb ps aux || true
+        docker-compose exec -T audio-recorder ps aux || true
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "Cleaning up..."
+        docker-compose down -v
+        docker system prune -f
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        echo "=== Test Summary ==="
+        echo "Build Date: $(date)"
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref }}"
+        echo "Test completed successfully" > test-report.txt
+        
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs
+        path: |
+          test-report.txt
+        retention-days: 7

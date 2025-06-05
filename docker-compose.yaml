@@ -18,6 +18,7 @@ services:
       - mongo_root_password
     networks:
       - audio-network
+   
  
   mongo-express:
     image: mongo-express:latest
