@@ -197,6 +197,9 @@ docker-compose logs -f audio-recorder
 docker-compose logs -f mongodb
 docker-compose logs -f mongo-express
 ```
+## Workflow
+
+Une github action est mise en place afin de s'assurer que les conteneurs démarrent correctement.
 
 ## Contribution
 Les contributions sont les bienvenues. Merci de respecter les standards de sécurité établis lors de vos propositions de modifications.
