@@ -115,6 +115,9 @@ ports:
 - **Recommandation Production**: Supprimer l'exposition des ports MongoDB et Mongo Express
 
 #### Profils AppArmor
+
+à mettre en place avec ./scripts/appArmor_setup.sh
+
 ```yaml
 security_opt:
   - apparmor:audio-recorder_profile
