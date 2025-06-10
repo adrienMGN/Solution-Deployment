@@ -81,6 +81,10 @@ RUN mkdir -p uploads && chown -R audioapp:nodejs uploads
 #### Gestion des Secrets
 
 ajout de ./secrets dans le .gitignore 
+les fihciers sont à créer avec mes identifiants suivant: 
+
+admin mdp : admin123
+audioapp mdp : audioapp123
 
 ```yaml
 secrets:
@@ -88,6 +92,10 @@ secrets:
     file: ./secrets/mongo_root_user.txt
   mongo_root_password:
     file: ./secrets/mongo_root_password.txt
+  mongo_user_password:
+    file: ./secrets/mongo_user_password.txt
+  mongo_user:
+    file: ./secrets/mongo_user.txt
 ```
 - **Principe**: Utilisation des secrets Docker Swarm
 - **Avantages**: 
